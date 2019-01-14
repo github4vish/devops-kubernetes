@@ -1,0 +1,17 @@
+- install docker 
+    apt-get install docker.io
+
+- cd docker-demo/
+
+-  cat Dockerfile
+
+- docker build -t visualpath/k8s-demo
+
+- docker run -p 3000:3000 visualpath/k8s-demo
+
+- docker images
+
+- docker login
+
+- docker push visualpath/k8s-demo
+

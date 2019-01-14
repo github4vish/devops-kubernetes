@@ -1,0 +1,284 @@
+#Setup Minikube locally:
+  - curl -Lo minikube https://storage.googleapis.com/minikube/releases/v0.17.1/minikube-linux-amd64 && chmod +x minikube && sudo mv minikube /usr/local/bin
+  - minikube start
+  - ls .kube/config
+    cat .kube/config
+
+#Kubectl:
+  - curl -Lo https://storage.googleapis.com/kubernetes-relase/$(curl -s https://storage.google.apis.com/kubernetes-release/stable.txt)/bin/linux/amd64/kubectl
+  - chmod u+x kubectl && sudo mv kubectl /usr/local/bin/
+  - cat .kube/config
+    kubectl
+    kubectl run hello-minikube --image=gcr.io/google_containers/echoserver:1.4 --port=8080
+    kubectl expose deployment hello-minikube --type=NodePort
+    minikube service hello-minikube --url
+
+#kops
+  - mkdir kops && cd kops
+  
+  - vagrant init ubuntu/xenial64
+    vagrant up
+    vagrant ssh
+    
+  - wget https://github.com/kubernetes/kops/release/download/1.5.3/kops-linux-amd64
+
+  - sudo apt-get -qq update
+    sudo apt-get -qq -y install python-pip
+    sudo pip install awscli
+
+  - aws setup for kops:
+      sudo -i
+      aws configure
+      AWS Access Key Id [None]:---
+      AWS Secret Access Key [None]:---
+      Deafult region name [None]:
+      Default output format [None]:
+
+      - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+
+      - ssh-keygen -f .ssh/id_rsa
+
+      - mv /usr/local/bin/kops-linux-amd64 /usr/local/bin/kops
+
+      - kops
+
+      - vi /etc/network/interfaces (intrfaces file )
+
+      - nslookup -type=ns kubernetes.devimranops.club
+        output:
+          Server:    8.8.8.8
+          Address:   8.8.8.8#53
+
+      - Setup Kubernetes cluster:
+          kops create cluster --name=kubernetes.devimranops.club --state=s3://kops-state-86 --zones=us-west-la --node-code=2 --node-size=t2.micro --master-size=t2.micro --dns-zone=kubernetes.devimranops.club
+          kops update cluster kubernetes.devimranops.club --yes --state=s3://kops-state-86
+          output:
+            cluster setup insitated instance is lauche in ec2
+          kops validate cluster--state=s3;///kops-stte=86
+          cat ~/.kube/config
+          kubectl getnodes
+          kubectl run helo-minikube --image=gcr.io/google_containers:1.4 --port=8080
+          kubectl expose deployment hello-minikube --type=NodePort
+          kubectl get service
+          kops delete cluster kubernetes.devimranops.club --state=s3://kops-state-86 --yes
+
+#docker-inside kubernetes
+docker-nano
+
+#first app on kubernetes
+- cat first-app/helloworld.yml
+
+- kubectl create -f first-app/helloworld.yml
+
+- kubectl describe pod nodehelloworld.example.com
+  kubectl pod commads: kubernetes-commands file
+
+- executing commands:
+    kubectl exec nodehelloworld.example.com -- ls /app
+    kubectl exec nodehelloworld.example.com -- touch /app/testfile.txt
+    kubectl exec nodehelloworld.example.com -- ls/app
+
+#Services for the App
+- cat first-app/helloworld-nodeport-service.yml
+
+- kubectl create -ffirst-app/helloworld-nodeport-service.yml
+
+- kubectl get service
+
+- accessing srvice from outside world:
+    open masterNode SecGrp from AWS 
+    allow the port <port number from (kubectl get service) 31001> from MyIP/Anywhere
+    acesss the masternode public IP and 31001 port from browser
+
+- deleting service:
+    kubectl get svc
+    kubectl delete service helloworld-service
+
+- Create AWS ELB as Service for our pod:
+    cat first-app/helloworld-service.yml
+    kubectl creat -f first-app/helloworld-service.yml
+    Verify ELB for AWS
+    Assign DNS name to our ELB from Route53:
+      AWS rout 53 config:
+        open AWS route53 dashboad
+        Hosted Zone
+        Create Record Set
+        Name:helloworld
+        Alias:Yes
+        ELB Classic load balancer
+      select your ELB and use helloworld.kubernetes.devimranops.club
+
+#Node Architecture
+kubernetes-help google docs
+
+#Scaling Pods
+Replicating our pod two times:
+  cat replication-controller/helloworld-repl-controller.yml
+
+  Check pod & rc (replication controller):
+    kubectl create -f replication-controller/helloworld-repl-container.yml
+    kubectl gt rc
+    kubectl get pod
+    kubectl describe pod helloworld-controller-514j9
+ 
+  Delete one pod to s scaling:
+    kubectl get pod
+    kubectl delete pod helloworld-container-514j9
+    kubectl get pod
+ 
+  Scaling Up/Down the replication controller
+    kubectl gt rc
+    kubectl scale --replicas=4 rc helloworld-controller
+    kubectl get pod
+    kubectl scale --replicas=1 rc helloworld-controller
+    kubectl get pod
+
+  Scaling Up/Down the replication controller
+    kubectl get pod
+    kubectl gt rc
+    kubectl scale --replicas=4 -f replication-controller/helloworld-rpl-controller.yml
+    kubectl gt rc
+    kubectl get pod
+    kubectl scale --replicas=1 -f replication-controller/helloworld-rpl-controller.yml
+    kubectl gt rc
+    kubectl get pod
+
+#Deployments
+- cat deployent/helloworld.yml
+
+- commands: kubernetes-commands file
+
+- Deployment:
+    create a deployment:
+      kubectl create -f deployment/helloworld.yml
+    get info on deployment, replication set (rs), pod, rollout, status
+      kubectl get deployment
+      kubectl get rs
+      kubectl get pods
+      kubectl get pods --show-labels
+      kubectl rollout status deployment helloword-deployment
+
+- Build k8s-demo image with next version, v2
+    Copy docker-demo directory into another directory:
+      ls
+      cp * -r /tmp/hellov2/
+    
+    Edit index.js file, update string in res.send to something like "version 2"
+      cd /tmp/helov2/
+      vi index.js
+      cat index.js  ( version 2 )
+    
+    Build  the image with tag v2
+      docker build -t visualpath/k8s-demo:V2
+  
+    Push the latest image to dockerhub registry:
+      docker images
+      docker push visualpath/k8s-demo:V2
+
+    Verify from dockerhub
+
+- expose existing deployment with nodeport
+    kubectl expose deployment helloworld-deployment --type=NodePort
+    kubectl get service
+    kubectl describe service helloworld-deployment
+
+- take the port number from above and allow this port in secgroups of AWS , then verify The Master Node IP and exposed port.
+
+- Upgrade te image version to V2 from Deployment
+    kubecl set image deploymen/helloworld-deployment k8s-demo=visualpath/k8s-demo:V2
+    kubectl get pod
+    kubect rollout status deployment helloworld-deployment
+
+- Verify from browser & curl
+    curl 54.183.128.169:32400
+
+- Deployment Rollout History
+    kubectl rollout history deployment hello-world-deployment
+
+- Rollback previous version
+    kubectl rollout undo deployment helloworld-deployment
+    kubectl get pod
+    kubectl rollout status deployment helloworld-deployment
+
+- Increasing rollout history limit from just to many
+    kubectl edit deployment helloworld-deployment
+      revisionHistoryLimit: 50
+    kubectl rollout history deployment helloworld-deployment
+    kubectl rollout undo deployment helloworld-deployment --to-revision=1
+    curl 54.183.128.169:32400
+
+- Rollout with version number
+    
+#More details about Services
+- Create a helloworld pod
+
+- Create a service for the above pod <selector value is the name of the pod as highlighted>
+    cat first-app/helloworld-nodeport-service.yml
+    kubectl create -f first-app/helloworld-nodeport-service.yml
+
+- Nodeport is explicitly defined in the service definition
+    cat first-app/helloworld-nodeport-service.yml
+
+- we can use svc as a shortform for service
+    kubectl get svc
+    kubectl describe svc helloworld-service
+
+- Delete and recreate service will change the internal IP/vitual IP
+    kubectl describe svc helloworld-service
+    kubectl delete svc hellowolrd-service
+    kubectl create -f first-app/hellowold-service.yml
+    kubectl get svc
+    kubectl describe svc helloworld-service
+
+#Labels
+- cat first-app/helloworld.yml
+    #from output:
+      labels:
+        app: helloworld
+
+- selecting a specific node from deployment definition
+    cat deployment/helloworld-nodeselector.yml
+      #from output:
+        nodeSelector:
+          hardware: high-spec
+
+- Tag hardware: high-spec is not on any node from outr cluster
+    kubectl get nodes --show-labels
+
+- Create our deployment which has nodeSelector tag looking for hardware: high-spec tag
+    cat deployment/helloworld-nodeselector.yl
+    kubectl create -f deploymrnt/helloworld-nodeselector.yml
+    kubectl get pod
+    kubectl describe pod helloworld-deployment-254499403-6pb8z
+
+- Lets Tag a node with hardware: high-spec
+    kubectl get nodes
+
+- pod will automatically schedule once the label is available
+   kubectl get pods
+   kubecctl describe pod helloworld-deployment-2524499403-6pb8z
+
+#Secrets
+- Base 64encoding, encoding username & password
+    echo -n "root" | base64
+    echo  -n "password" | base64
+
+- Create secret
+    cat deployment/helloworld-secrets.yml
+
+- Creating deployment which mounts our secret  (db-secrets) as a volume.
+    kubectl create -f deployment/helloworld-secret.yml
+
+- Describe shows the mounted volume,db-secret mounted as volume.
+
+- Login to any of thepods and check the mount point /etc/creds to verify our db-secrets.
+    kubectl get pod
+    kubectl exec -i -t helloworld-deployment-1674349767-33nzc -- /bin/bash
+    ls /etc/creds/
+    cat /etc/creds/username
+    cat /etc/creds/password
+    df -h
+      #from output:
+        /etc/creds
+
+
