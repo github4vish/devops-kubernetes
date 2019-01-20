@@ -1,1 +1,1 @@
-echo "This is ansible crack"
+echo "This is kubernetes crack"
